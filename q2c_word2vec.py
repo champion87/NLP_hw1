@@ -4,8 +4,8 @@ import random
 import numpy as np
 
 from helpers.utils import normalize_rows, sigmoid, get_negative_samples
-from q3a_softmax import softmax
-from q3b_gradcheck import gradcheck_naive
+from q2a_softmax import softmax
+from q2b_gradcheck import gradcheck_naive
 
 
 def naive_softmax_loss_and_gradient(
@@ -27,7 +27,8 @@ def naive_softmax_loss_and_gradient(
                     (o of u_o in the pdf handout)
     outside_vectors -- outside vectors (rows of matrix) for all words in vocab
                       (U in the pdf handout)
-    dataset -- needed for negative sampling, unused here.
+    dataset -- needed for negative
+     sampling, unused here.
 
     Return:
     loss -- naive softmax loss
@@ -38,10 +39,81 @@ def naive_softmax_loss_and_gradient(
     """
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+    scores = np.dot(outside_vectors, center_word_vec)
+    distribution_hypothesis = softmax(scores)
+    loss = - np.log(distribution_hypothesis[outside_word_idx])
+
+    # print(f"########## {outside_vectors[outside_word_idx].shape} ##########")
+    # print(f"########## {np.dot(outside_vectors, distribution_hypothesis).shape} ##########")
+    
+    grad_center_vec = np.dot(distribution_hypothesis, outside_vectors) - outside_vectors[outside_word_idx]
+
+    v_c_coefs_for_du_w = distribution_hypothesis
+    v_c_coefs_for_du_w[outside_word_idx] -= 1
+    grad_outside_vecs = np.outer(v_c_coefs_for_du_w, center_word_vec)
     ### END YOUR CODE
 
     return loss, grad_center_vec, grad_outside_vecs
+
+
+# def neg_sampling_loss_and_gradient(
+#         center_word_vec,
+#         outside_word_idx,
+#         outside_vectors,
+#         dataset,
+#         K=10
+# ):
+#     """ Negative sampling loss function for word2vec models
+
+#     Implement the negative sampling loss and gradients for a center_word_vec
+#     and a outside_word_idx word vector as a building block for word2vec
+#     models. K is the number of negative samples to take.
+
+#     Note: The same word may be negatively sampled multiple times. For
+#     example if an outside word is sampled twice, you shall have to
+#     double count the gradient with respect to this word. Thrice if
+#     it was sampled three times, and so forth.
+
+#     Arguments/Return Specifications: same as naive_softmax_loss_and_gradient
+#     """
+
+#     # Negative sampling of words is done for you. Do not modify this if you
+#     # wish to match the autograder and receive points!
+#     neg_sample_word_indices = get_negative_samples(outside_word_idx, dataset, K)
+#     indices = [outside_word_idx] + neg_sample_word_indices
+
+#     ### YOUR CODE HERE
+#     u_o = outside_vectors[outside_word_idx]
+#     score_for_o = np.dot(u_o, center_word_vec)
+#     prob_h_o = sigmoid(score_for_o)
+#     log_loss_for_o = -np.log(prob_h_o)
+
+#     negatives = outside_vectors[neg_sample_word_indices]
+#     scores_for_negatives = -np.dot(negatives, center_word_vec)
+#     prob_h_negatives = sigmoid(scores_for_negatives)
+#     log_loss_for_negatives = -np.log(prob_h_negatives)
+
+#     loss = log_loss_for_o + np.sum(log_loss_for_negatives)
+
+#     grad_from_negatives = np.dot(1 - prob_h_negatives, negatives)
+#     # grad_from_negatives = np.sum((1 - prob_h_negatives)[:, np.newaxis] * negatives, axis=0)
+#     grad_from_positive = (prob_h_o - 1) * u_o
+#     grad_center_vec = grad_from_positive + grad_from_negatives
+    
+
+#     one_hot_o = np.zeros(outside_vectors.shape[0])
+#     one_hot_o[outside_word_idx] = 1
+    
+#     grad_outside_vecs = np.zeros_like(outside_vectors)
+#     for neg_idx in neg_sample_word_indices:
+#         u_k = outside_vectors[neg_idx]
+#         neg_prob = sigmoid(-np.dot(u_k, center_word_vec))
+#         grad_outside_vecs[neg_idx] += (1 - neg_prob) * center_word_vec
+#     grad_outside_vecs[outside_word_idx] +=  (score_for_o - 1) * center_word_vec
+    
+#     ### END YOUR CODE
+
+#     return loss, grad_center_vec, grad_outside_vecs
 
 
 def neg_sampling_loss_and_gradient(
@@ -53,25 +125,45 @@ def neg_sampling_loss_and_gradient(
 ):
     """ Negative sampling loss function for word2vec models
 
-    Implement the negative sampling loss and gradients for a center_word_vec
-    and a outside_word_idx word vector as a building block for word2vec
-    models. K is the number of negative samples to take.
+    Arguments:
+    center_word_vec -- numpy ndarray, center word's embedding (v_c in the handout)
+    outside_word_idx -- integer, the index of the outside word (o of u_o in the handout)
+    outside_vectors -- numpy ndarray, outside word vectors (U in the handout)
+    dataset -- needed for negative sampling, unused here
+    K -- integer, the number of negative samples to take
 
-    Note: The same word may be negatively sampled multiple times. For
-    example if an outside word is sampled twice, you shall have to
-    double count the gradient with respect to this word. Thrice if
-    it was sampled three times, and so forth.
-
-    Arguments/Return Specifications: same as naive_softmax_loss_and_gradient
+    Return:
+    loss -- negative sampling loss
+    grad_center_vec -- the gradient with respect to the center word vector (dJ / dv_c)
+    grad_outside_vecs -- the gradient with respect to all the outside word vectors (dJ / dU)
     """
 
-    # Negative sampling of words is done for you. Do not modify this if you
-    # wish to match the autograder and receive points!
+    # Get negative samples
     neg_sample_word_indices = get_negative_samples(outside_word_idx, dataset, K)
     indices = [outside_word_idx] + neg_sample_word_indices
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+    grad_outside_vecs = np.zeros_like(outside_vectors)
+    grad_center_vec = np.zeros_like(center_word_vec)
+    loss = 0.0
+
+    # Positive sample
+    u_o = outside_vectors[outside_word_idx]
+    score_for_o = np.dot(u_o, center_word_vec)
+    prob_o = sigmoid(score_for_o)
+    loss -= np.log(prob_o)
+    grad_center_vec += (prob_o - 1) * u_o
+    grad_outside_vecs[outside_word_idx] += (prob_o - 1) * center_word_vec
+
+    # Negative samples
+    for neg_idx in neg_sample_word_indices:
+        u_k = outside_vectors[neg_idx]
+        score_for_k = np.dot(u_k, center_word_vec)
+        prob_k = sigmoid(-score_for_k)
+        loss -= np.log(prob_k)
+        grad_center_vec += (1 - prob_k) * u_k
+        grad_outside_vecs[neg_idx] += (1 - prob_k) * center_word_vec
+
     ### END YOUR CODE
 
     return loss, grad_center_vec, grad_outside_vecs
@@ -112,7 +204,18 @@ def skipgram(current_center_word, outside_words, word2ind,
     grad_outside_vectors = np.zeros(outside_vectors.shape)
 
     ### YOUR CODE HERE
-    raise NotImplementedError
+    center_word_idx = word2ind[current_center_word]
+    center_word_vector = center_word_vectors[center_word_idx]
+
+    for outside_word in outside_words:
+        outside_word_idx = word2ind[outside_word]
+        l, grad_center, grad_outside = word2vec_loss_and_gradient(
+            center_word_vector, outside_word_idx, outside_vectors, dataset
+        )
+        loss += l
+        grad_center_vecs[center_word_idx] += grad_center
+        grad_outside_vectors += grad_outside
+
     ### END YOUR CODE
 
     return loss, grad_center_vecs, grad_outside_vectors

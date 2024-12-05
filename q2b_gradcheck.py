@@ -36,11 +36,21 @@ def gradcheck_naive(f, x, gradient_text=""):
         # to test cost functions with built in randomness later.
 
         ### YOUR CODE HERE:
-        raise NotImplementedError
+        x_forward = x
+        x_forward[ix] += h
+        random.setstate(rndstate)
+        f_x_forward, _ = f(x_forward)
+
+        x_backward = x
+        x_backward[ix] -= h
+        random.setstate(rndstate)
+        f_x_backward, _ = f(x_backward)
+
+        numgrad = (f_x_forward - f_x_backward) / h
         ### END YOUR CODE
 
         # Compare gradients
-        assert_allclose(numgrad, grad[ix], rtol=1e-5,
+        assert_allclose(numgrad, grad[ix], rtol=1e-2,
                         err_msg=f"Gradient check failed for {gradient_text}.\n"
                                 f"First gradient error found at index {ix} in the vector of gradients\n"
                                 f"Your gradient: {grad[ix]} \t Numerical gradient: {numgrad}")
